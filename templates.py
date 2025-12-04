@@ -36,10 +36,12 @@ class TemplateManager:
         template_str = """{% set tmdb_actual = tmdbid|default(tmdb_id, true) %}
 {% set imdb_actual = imdbid|default(imdb_id, true) %}
 {% set douban_actual = doubanid|default(douban_id, true) %}
-{% set mt_raw = media_type|default(type, true)|default(tmdb_type, true)|default(tmdb_media_type, true)|default('', true) %}
-{% set looks_like_tv = (season_fmt or season_episode) or (category and ('剧' in category or '番' in category)) %}
-{% set mt_label = ('剧集' if (mt_raw|string)|lower in ['tv','电视剧','剧集','television','episode'] or looks_like_tv else '电影') %}
-{% set mt_type = 'tv' if mt_label == '剧集' else 'movie' %}
+{# 直接使用 media_type，它已经基于 Emby 的 Type 字段正确设置（'tv' 或 'movie'） #}
+{% set mt_raw = media_type|default(type, true)|default('', true) %}
+{# 作为后备，如果有季集信息则肯定是剧集 #}
+{% set is_tv = (mt_raw|string)|lower in ['tv','电视剧','剧集','television','episode'] or (season_fmt or season_episode) %}
+{% set mt_label = '剧集' if is_tv else '电影' %}
+{% set mt_type = 'tv' if is_tv else 'movie' %}
 {% set rq_input = resource_term|default(resource_quality, true)|default('', true) %}
 {% set rq_lower = rq_input|lower %}
 {% set vw = (video_width|default(0))|int %}

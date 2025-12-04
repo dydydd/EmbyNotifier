@@ -545,14 +545,18 @@ class NotificationAggregator:
         
         media_type = template_vars.get('media_type', 'movie')
         
+        # 检查是否配置了 API Key
+        api_key = Config.TMDB_API_KEY
+        if not api_key:
+            logger.debug("TMDB_API_KEY 未配置，跳过图片和简介获取")
+            return None, None
+        
         try:
-            api_key = Config.TMDB_API_KEY
-            if api_key:
-                api_url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}?api_key={api_key}&language=zh-CN"
-            else:
-                api_url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}?language=zh-CN"
+            api_url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}?api_key={api_key}&language=zh-CN"
             
+            logger.debug(f"正在从 TMDB 获取信息: {media_type}/{tmdb_id}")
             response = requests.get(api_url, timeout=5)
+            
             if response.status_code == 200:
                 data = response.json()
                 
@@ -562,12 +566,20 @@ class NotificationAggregator:
                 if poster_path:
                     base_url = Config.TMDB_IMAGE_BASE_URL.rstrip('/')
                     image_url = f"{base_url}{poster_path}"
+                    logger.debug(f"获取到 TMDB 图片: {image_url}")
+                else:
+                    logger.debug("TMDB 数据中没有 poster_path")
                 
                 # 获取中文简介（必须是中文，如果没有中文简介则不使用）
                 overview_zh = data.get('overview')
-                # 只使用中文简介，如果没有中文简介则返回 None（使用 Emby 的简介）
+                if overview_zh:
+                    logger.debug(f"获取到 TMDB 中文简介: {overview_zh[:50]}...")
+                else:
+                    logger.debug("TMDB 数据中没有中文简介")
                 
                 return image_url, overview_zh
+            else:
+                logger.warning(f"TMDB API 返回错误状态码: {response.status_code}, 响应: {response.text[:200]}")
         except Exception as e:
             logger.warning(f"从 TMDB 获取信息失败: {e}")
         

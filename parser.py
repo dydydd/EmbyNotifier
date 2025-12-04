@@ -42,14 +42,34 @@ class EmbyDataParser:
         # 基本信息
         # 对于剧集，使用 SeriesName；对于电影，使用 Name
         if is_episode:
-            name = item.get('SeriesName', '') or item.get('Name', '')
+            series_name = item.get('SeriesName', '')
+            episode_name = item.get('Name', '')
+            
+            # 优先使用 SeriesName，如果为空则使用 Name
+            name = series_name or episode_name
+            
+            # 如果只有单集名称（通常以"第"、"Episode"等开头），记录警告
+            if not series_name and episode_name:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"剧集缺少 SeriesName，仅使用 Name: {episode_name}")
         else:
             name = item.get('Name', '')
         
         production_year = item.get('ProductionYear', 0)
         
+        # 对于剧集，如果名称看起来像是单集名称（如"第1集"、"Episode 2"），不添加年份
+        # 因为这说明 SeriesName 缺失，添加年份会很奇怪
+        is_episode_name_only = False
+        if is_episode and name:
+            # 检查是否是纯集名称（以"第"开头、或"Episode"开头、或纯数字）
+            import re
+            if re.match(r'^(第\s*\d+\s*集|Episode\s+\d+|\d+)$', name.strip(), re.IGNORECASE):
+                is_episode_name_only = True
+        
         # 如果名称中已经包含年份（格式如 "剧名 (YYYY)"），则不重复添加
-        if production_year and not (f"({production_year})" in name or f"（{production_year}）" in name):
+        # 如果是纯集名称，也不添加年份
+        if production_year and not is_episode_name_only and not (f"({production_year})" in name or f"（{production_year}）" in name):
             title_year = f"{name} ({production_year})"
         else:
             title_year = name
