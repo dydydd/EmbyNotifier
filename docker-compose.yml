@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  emby-notify:
+    # 使用预构建镜像（推荐）
+    image: dydydd/embynotifier:latest
+    # 或者本地构建：取消下面的注释，注释掉上面的 image
+    # build: .
+    container_name: emby-notify
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      # Telegram 配置（必需）
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      
+      # Webhook 服务配置（可选）
+      - WEBHOOK_HOST=0.0.0.0
+      - WEBHOOK_PORT=5000
+      
+      # 聚合通知配置（可选）
+      - AGGREGATION_DELAY=${AGGREGATION_DELAY:-10}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
