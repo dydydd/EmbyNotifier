@@ -74,13 +74,13 @@ class TemplateManager:
 
 📝 简介：{{ overview[:160] }}{% if overview|length > 160 %}…{% endif %}
 {% endif %}
+{% set links = [] %}
+{% if tmdb_actual %}{% set _ = links.append('🔗 [TMDB](https://www.themoviedb.org/' ~ mt_type ~ '/' ~ tmdb_actual|string ~ ')') %}{% endif %}
+{% if douban_actual %}{% set _ = links.append('🎬 [豆瓣](https://movie.douban.com/subject/' ~ douban_actual|string ~ '/)') %}{% elif imdb_actual %}{% set _ = links.append('🎬 [豆瓣](https://www.douban.com/search?cat=1002&q=' ~ imdb_actual|string ~ ')') %}{% elif title_year %}{% set _ = links.append('🎬 [豆瓣](https://www.douban.com/search?cat=1002&q=' ~ (title_year | urlencode) ~ ')') %}{% endif %}
+{% if imdb_actual %}{% set _ = links.append('🌟 [IMDb](https://www.imdb.com/title/' ~ imdb_actual|string ~ '/)') %}{% endif %}
+{% if links %}
 
-🌐 链接：
-{% if tmdb_actual %} 🔗 [TMDB](https://www.themoviedb.org/{{ mt_type }}/{{ tmdb_actual }}){% endif %}
-{% if douban_actual %} | 🎬 [豆瓣](https://movie.douban.com/subject/{{ douban_actual }}/)
-{% elif imdb_actual %} | 🎬 [豆瓣](https://www.douban.com/search?cat=1002&q={{ imdb_actual }})
-{% elif title_year %} | 🎬 [豆瓣](https://www.douban.com/search?cat=1002&q={{ title_year | urlencode }}){% endif %}
-{% if imdb_actual %} | 🌟 [IMDb](https://www.imdb.com/title/{{ imdb_actual }}/){% endif %}"""
+🌐 链接：{{ links | join(' | ') }}{% endif %}"""
         
         return self.env.from_string(template_str)
     

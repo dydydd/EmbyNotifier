@@ -35,14 +35,24 @@ class EmbyDataParser:
         item = item_data.get('Item', {})
         server = item_data.get('Server', {})
         
-        # 基本信息
-        name = item.get('Name', '')
-        production_year = item.get('ProductionYear', 0)
-        title_year = f"{name} ({production_year})" if production_year else name
-        
         # 媒体类型
         item_type = item.get('Type', '')
         is_episode = item_type == 'Episode'
+        
+        # 基本信息
+        # 对于剧集，使用 SeriesName；对于电影，使用 Name
+        if is_episode:
+            name = item.get('SeriesName', '') or item.get('Name', '')
+        else:
+            name = item.get('Name', '')
+        
+        production_year = item.get('ProductionYear', 0)
+        
+        # 如果名称中已经包含年份（格式如 "剧名 (YYYY)"），则不重复添加
+        if production_year and not (f"({production_year})" in name or f"（{production_year}）" in name):
+            title_year = f"{name} ({production_year})"
+        else:
+            title_year = name
         
         # 剧集信息
         season_episode, season_fmt = EmbyDataParser._extract_season_info(item, is_episode)

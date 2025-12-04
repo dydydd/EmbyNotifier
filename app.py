@@ -6,6 +6,7 @@ Emby 入库通知 Telegram Bot - 主应用
 
 import json
 import logging
+import re
 from typing import Optional
 import requests
 
@@ -16,6 +17,7 @@ from parser import EmbyDataParser
 from telegram_client import TelegramClient
 from templates import TemplateManager
 from notification_aggregator import NotificationAggregator
+from utils import find_tmdb_id
 
 
 def _get_tmdb_info(template_vars: dict) -> tuple[Optional[str], Optional[str]]:
@@ -29,6 +31,36 @@ def _get_tmdb_info(template_vars: dict) -> tuple[Optional[str], Optional[str]]:
         (image_url, overview_zh) 元组，如果获取失败则返回 (None, None)
     """
     tmdb_id = template_vars.get('tmdb_id')
+    
+    # 如果没有 TMDB ID，尝试通过其他信息查找
+    if not tmdb_id:
+        imdb_id = template_vars.get('imdb_id')
+        title_year = template_vars.get('title_year', '')
+        # 从 title_year 中提取标题和年份（格式如 "剧名 (2023)"）
+        title = title_year
+        year = None
+        if '(' in title_year and ')' in title_year:
+            # 尝试提取年份
+            match = re.search(r'\((\d{4})\)', title_year)
+            if match:
+                year = int(match.group(1))
+                title = title_year[:title_year.rfind('(')].strip()
+        
+        media_type = template_vars.get('media_type', 'movie')
+        found_tmdb_id = find_tmdb_id(
+            imdb_id=imdb_id,
+            title=title if title else None,
+            year=year,
+            media_type=media_type,
+            api_key=Config.TMDB_API_KEY
+        )
+        
+        if found_tmdb_id:
+            tmdb_id = found_tmdb_id
+            # 更新 template_vars 以便后续使用
+            template_vars['tmdb_id'] = found_tmdb_id
+            template_vars['tmdbid'] = found_tmdb_id
+    
     if not tmdb_id:
         return None, None
     
