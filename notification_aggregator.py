@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 from parser import EmbyDataParser
 from telegram_client import TelegramClient
 from templates import TemplateManager
+from config import Config
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +58,7 @@ class NotificationAggregator:
         # 锁，保护共享数据
         self.lock = threading.Lock()
     
-    def add_notification(self, data: Dict[str, Any]) -> bool:
+    def add_notification(self, data: Dict[str, Any], template_vars_override: Optional[Dict[str, Any]] = None) -> bool:
         """
         添加通知到聚合队列
         
@@ -67,8 +69,20 @@ class NotificationAggregator:
             是否成功添加
         """
         try:
-            # 解析数据
-            template_vars = self.parser.parse(data)
+            # 解析数据（如果提供了覆盖的 template_vars，使用它）
+            if template_vars_override:
+                template_vars = template_vars_override
+            else:
+                template_vars = self.parser.parse(data)
+                if template_vars:
+                    # 如果没有提供覆盖，尝试从 TMDB 获取中文简介
+                    image_url, overview_zh = self._get_tmdb_info(template_vars)
+                    if image_url:
+                        template_vars['_tmdb_image_url'] = image_url
+                    if overview_zh:
+                        template_vars['overview'] = overview_zh
+                        template_vars['overview_source'] = 'tmdb'
+            
             if not template_vars:
                 return False
             
@@ -149,7 +163,8 @@ class NotificationAggregator:
         """直接发送电影通知"""
         try:
             title, text = self.template_manager.render(template_vars)
-            return self.telegram_client.send_message(title, text)
+            photo_url = self._build_image_url(template_vars)
+            return self.telegram_client.send_message(title, text, photo_url=photo_url)
         except Exception as e:
             logger.exception(f"发送电影通知时出错: {e}")
             return False
@@ -158,7 +173,8 @@ class NotificationAggregator:
         """发送单集通知（用于无法聚合的情况）"""
         try:
             title, text = self.template_manager.render(template_vars)
-            return self.telegram_client.send_message(title, text)
+            photo_url = self._build_image_url(template_vars)
+            return self.telegram_client.send_message(title, text, photo_url=photo_url)
         except Exception as e:
             logger.exception(f"发送剧集通知时出错: {e}")
             return False
@@ -191,13 +207,16 @@ class NotificationAggregator:
             if len(notifications) == 1:
                 template_vars = notifications[0]['template_vars']
                 title, text = self.template_manager.render(template_vars)
-                self.telegram_client.send_message(title, text)
+                photo_url = self._build_image_url(template_vars)
+                self.telegram_client.send_message(title, text, photo_url=photo_url)
                 logger.info(f"发送单集通知: {aggregation_key}")
                 return
             
             # 多条：生成聚合通知
             aggregated_title, aggregated_text = self._create_aggregated_message(notifications)
-            self.telegram_client.send_message(aggregated_title, aggregated_text)
+            # 使用第一条的图片
+            photo_url = self._build_image_url(notifications[0]['template_vars'])
+            self.telegram_client.send_message(aggregated_title, aggregated_text, photo_url=photo_url)
             
             logger.info(f"发送聚合通知: {aggregation_key}, 共 {len(notifications)} 集")
         
@@ -476,6 +495,68 @@ class NotificationAggregator:
                 ranges.append(f"S{current_season:02d}E{current_range_start:02d}-E{current_range_end:02d}")
         
         return ranges
+    
+    def _get_tmdb_info(self, template_vars: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
+        """
+        从 TMDB 获取图片 URL 和中文简介
+        
+        Args:
+            template_vars: 模板变量字典
+        
+        Returns:
+            (image_url, overview_zh) 元组
+        """
+        tmdb_id = template_vars.get('tmdb_id')
+        if not tmdb_id:
+            return None, None
+        
+        media_type = template_vars.get('media_type', 'movie')
+        
+        try:
+            api_key = Config.TMDB_API_KEY
+            if api_key:
+                api_url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}?api_key={api_key}&language=zh-CN"
+            else:
+                api_url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}?language=zh-CN"
+            
+            response = requests.get(api_url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                
+                # 获取图片 URL
+                image_url = None
+                poster_path = data.get('poster_path')
+                if poster_path:
+                    base_url = Config.TMDB_IMAGE_BASE_URL.rstrip('/')
+                    image_url = f"{base_url}{poster_path}"
+                
+                # 获取中文简介（必须是中文，如果没有中文简介则不使用）
+                overview_zh = data.get('overview')
+                # 只使用中文简介，如果没有中文简介则返回 None（使用 Emby 的简介）
+                
+                return image_url, overview_zh
+        except Exception as e:
+            logger.warning(f"从 TMDB 获取信息失败: {e}")
+        
+        return None, None
+    
+    def _build_image_url(self, template_vars: Dict[str, Any]) -> Optional[str]:
+        """
+        从 TMDB 获取图片 URL（兼容接口）
+        
+        Args:
+            template_vars: 模板变量字典
+        
+        Returns:
+            图片 URL 或 None
+        """
+        # 如果已经有缓存的图片 URL，直接返回
+        if '_tmdb_image_url' in template_vars:
+            return template_vars['_tmdb_image_url']
+        
+        # 否则调用 API 获取
+        image_url, _ = self._get_tmdb_info(template_vars)
+        return image_url
     
     def flush_all(self):
         """立即发送所有待聚合的通知（用于程序关闭时）"""

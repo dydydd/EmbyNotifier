@@ -22,6 +22,10 @@ class Config:
     # 聚合通知配置
     AGGREGATION_DELAY: int = int(os.getenv('AGGREGATION_DELAY', '10'))  # 聚合延迟时间（秒）
     
+    # TMDB 配置（用于获取图片）
+    TMDB_API_KEY: str = os.getenv('TMDB_API_KEY', '')  # TMDB API Key（可选，但推荐配置以获得更好的访问速度）
+    TMDB_IMAGE_BASE_URL: str = os.getenv('TMDB_IMAGE_BASE_URL', 'https://image.tmdb.org/t/p/w500')  # TMDB 图片基础 URL
+    
     @classmethod
     def validate(cls) -> Tuple[bool, Optional[str]]:
         """

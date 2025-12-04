@@ -13,6 +13,8 @@
 - ✅ **电影通知**：电影通知立即发送，不聚合
 - ✅ 自动识别画质（720p/1080p/4K）和 HDR 信息
 - ✅ 显示评分、类型、文件大小等信息
+- ✅ **从 TMDB 获取高质量海报图片**
+- ✅ **从 TMDB 获取中文简介**（优先使用，如果没有则使用 Emby 简介）
 - ✅ 提供 TMDB、IMDb、豆瓣链接
 - ✅ 使用 Jinja2 模板引擎，易于自定义
 - ✅ 模块化设计，便于维护和扩展
@@ -122,6 +124,14 @@ python app.py
 - `WEBHOOK_HOST`: Webhook 服务监听地址，默认 `0.0.0.0`
 - `WEBHOOK_PORT`: Webhook 服务端口，默认 `5000`
 - `AGGREGATION_DELAY`: 聚合延迟时间（秒），默认 `10` 秒。同一部剧的多集通知会在此时间内聚合为一条。设置为 `0` 则禁用聚合。
+- `TMDB_API_KEY`: TMDB API Key（可选但推荐），用于获取高质量海报图片和中文简介。可免费注册：https://www.themoviedb.org/settings/api
+- `TMDB_IMAGE_BASE_URL`: TMDB 图片尺寸，默认 `w500`（500px）。可选：w92, w154, w185, w342, w500, w780, original
+
+### TMDB 功能说明
+
+- **图片获取**：自动从 TMDB 获取媒体海报图片，无需配置 Emby 服务器地址
+- **中文简介**：优先使用 TMDB 的中文简介，如果没有中文简介则使用 Emby 的简介
+- **无需 API Key**：即使不配置 `TMDB_API_KEY` 也能使用，但推荐配置以获得更好的访问速度和稳定性
 
 ### Docker Compose 环境变量文件
 
@@ -175,6 +185,38 @@ http://emby-notify:5000/webhook
 消息使用 Jinja2 模板引擎，你可以修改 `templates.py` 中的 `TemplateManager` 类来自定义消息格式。该类包含：
 - `_create_title_template()`: 标题模板
 - `_create_text_template()`: 正文模板
+
+## TMDB 集成
+
+### 功能特性
+
+- **自动获取海报图片**：从 TMDB 获取高质量海报，无需配置 Emby 服务器
+- **中文简介支持**：优先使用 TMDB 的中文简介，确保通知内容为中文
+- **智能回退**：如果 TMDB 没有中文简介，自动使用 Emby 的简介
+
+### 获取 TMDB API Key
+
+1. 访问 https://www.themoviedb.org/settings/api
+2. 注册/登录账号（免费）
+3. 创建 API Key（选择 "Developer" 类型）
+4. 复制 API Key 并配置到环境变量
+
+### 配置示例
+
+```bash
+# 推荐配置（获得最佳体验）
+TMDB_API_KEY=your_tmdb_api_key_here
+TMDB_IMAGE_BASE_URL=https://image.tmdb.org/t/p/w500
+
+# 也可以不配置，使用公开访问（可能有速率限制）
+```
+
+### 图片尺寸说明
+
+- `w500`: 500px 宽度（默认，适合 Telegram）
+- `w780`: 780px 宽度（高质量）
+- `original`: 原始尺寸（最大，可能很大）
+- 其他尺寸：w92, w154, w185, w342
 
 ## 示例消息
 

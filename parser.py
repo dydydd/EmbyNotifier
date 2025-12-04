@@ -79,6 +79,12 @@ class EmbyDataParser:
         # 简介
         overview = item.get('Overview') or item_data.get('Description', '')
         
+        # 图片信息
+        image_tags = item.get('ImageTags', {})
+        primary_image_tag = image_tags.get('Primary')
+        item_id = item.get('Id')
+        series_id_for_image = item.get('SeriesId') if is_episode else None
+        
         # 构建模板变量字典
         template_vars = {
             'title_year': title_year,
@@ -103,6 +109,10 @@ class EmbyDataParser:
             'file_count': file_count,
             'total_size': total_size,
             'overview': overview,
+            'overview_source': 'emby',  # 标记简介来源
+            'item_id': item_id,
+            'primary_image_tag': primary_image_tag,
+            'series_id': series_id_for_image,
         }
         
         return template_vars

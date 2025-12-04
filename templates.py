@@ -36,12 +36,10 @@ class TemplateManager:
         template_str = """{% set tmdb_actual = tmdbid|default(tmdb_id, true) %}
 {% set imdb_actual = imdbid|default(imdb_id, true) %}
 {% set douban_actual = doubanid|default(douban_id, true) %}
-# 媒体类型自动判定
 {% set mt_raw = media_type|default(type, true)|default(tmdb_type, true)|default(tmdb_media_type, true)|default('', true) %}
 {% set looks_like_tv = (season_fmt or season_episode) or (category and ('剧' in category or '番' in category)) %}
 {% set mt_label = ('剧集' if (mt_raw|string)|lower in ['tv','电视剧','剧集','television','episode'] or looks_like_tv else '电影') %}
 {% set mt_type = 'tv' if mt_label == '剧集' else 'movie' %}
-# 画质信息组合
 {% set rq_input = resource_term|default(resource_quality, true)|default('', true) %}
 {% set rq_lower = rq_input|lower %}
 {% set vw = (video_width|default(0))|int %}
@@ -58,7 +56,6 @@ class TemplateManager:
 {% if 'dolby vision' in rq_lower or 'dv' in rq_lower %}{% set _ = hdrs.append('Dolby Vision') %}{% endif %}
 {% if 'imax' in rq_lower %}{% set _ = hdrs.append('IMAX') %}{% endif %}
 {% set hdr_text = '｜'.join(hdrs) %}
-# 输出主体
 📢 媒体库：Emby
 {% if vote_average %}⭐️ 评分：{{ vote_average }}/10
 {% endif %}
