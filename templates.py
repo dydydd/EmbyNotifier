@@ -29,7 +29,7 @@ class TemplateManager:
             "{% elif season_fmt %} {{ season_fmt }}"
             "{% endif %} 已入库"
         )
-        return Template(template_str, environment=self.env)
+        return self.env.from_string(template_str)
     
     def _create_text_template(self) -> Template:
         """创建正文模板"""
@@ -85,7 +85,7 @@ class TemplateManager:
 {% elif title_year %} | 🎬 [豆瓣](https://www.douban.com/search?cat=1002&q={{ title_year | urlencode }}){% endif %}
 {% if imdb_actual %} | 🌟 [IMDb](https://www.imdb.com/title/{{ imdb_actual }}/){% endif %}"""
         
-        return Template(template_str, environment=self.env)
+        return self.env.from_string(template_str)
     
     def render(self, template_vars: dict) -> tuple[str, str]:
         """
